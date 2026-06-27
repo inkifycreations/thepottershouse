@@ -1,0 +1,370 @@
+{% extends 'base.html' %}
+
+{% block title %}Missions Live Stream | Potter's House{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div style="margin-bottom: 2rem;">
+        <h1 style="color: var(--blue-primary); font-size: 2.2rem; font-weight: 800;">Missions Live Streaming</h1>
+        <p style="color: #64748b; margin-top: 0.25rem;">Broadcast live updates from the mission fields or tune in to pastor briefings.</p>
+    </div>
+
+    <div class="grid-2">
+        <!-- Control Card -->
+        <div class="card" style="padding: 2rem; height: fit-content;">
+            <h3 style="color: var(--blue-primary); margin-bottom: 1.5rem; border-bottom: 2px solid var(--border-color); padding-bottom: 0.5rem;">Select Live Stream Channel</h3>
+            
+            <!-- State Selector -->
+            <div class="form-group">
+                <label for="state-select">Select Mission State</label>
+                <select id="state-select" class="form-select">
+                    <option value="">Choose State</option>
+                    {% for s in states %}
+                        <option value="{{ s.id }}">{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Pastor Selector -->
+            <div class="form-group">
+                <label for="pastor-select">Select Pastor Channel</label>
+                <select id="pastor-select" class="form-select" disabled>
+                    <option value="">Choose State First</option>
+                </select>
+            </div>
+
+            {% if is_pastor %}
+            <div class="form-group" style="background: #f8fafc; padding: 1rem; border-radius: var(--radius-sm); margin-top: 1rem; border: 1px solid #dbeafe;">
+                <h4 style="margin-bottom: 0.75rem; font-size: 1rem; color: var(--blue-primary);">OBS + RTMP Setup</h4>
+                <p style="margin-bottom: 0.75rem; color: #475569;">Use the settings below in OBS Studio. Start streaming to the RTMP server to publish your channel.</p>
+                <p style="margin-bottom: 0.25rem;"><strong>RTMP URL:</strong> <code>{{ rtmp_server }}</code></p>
+                <p style="margin-bottom: 0.25rem;"><strong>Stream key:</strong> <code id="current-stream-key">Select your pastor channel</code></p>
+                <p style="margin-bottom: 0.25rem;"><strong>Nginx status:</strong> <span id="nginx-status-text">Checking...</span></p>
+                <button id="btn-start-nginx" class="btn btn-secondary btn-full" style="margin-top: 0.75rem; display: none;">Start Nginx</button>
+                <p style="margin-top: 1rem; color: #475569; font-size: 0.9rem;">Once OBS begins publishing, the live stream will be available to viewers via HLS.</p>
+            </div>
+            {% endif %}
+
+            <div id="stream-controls" style="display: none; border-top: 1px solid var(--border-color); padding-top: 1.5rem; margin-top: 1.5rem;">
+                <h4 style="margin-bottom: 1rem; font-size: 1rem;">Watch or monitor the stream</h4>
+                <button id="btn-tune-in" class="btn btn-primary btn-full" style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-tv"><rect width="20" height="15" x="2" y="7" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
+                    Tune In / Watch
+                </button>
+            </div>
+
+            <div id="selection-prompt" style="background-color: var(--blue-light); border-radius: var(--radius-sm); padding: 1rem; text-align: center; color: var(--blue-primary); font-size: 0.9rem; font-weight: 500; margin-top: 1.5rem;">
+                Select a state and pastor to watch the live stream. Pastors should publish from OBS Studio using the RTMP settings above.
+            </div>
+        </div>
+
+        <!-- Video Player Display Window -->
+        <div class="card" style="padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 id="player-title" style="color: var(--blue-primary); font-size: 1.2rem;">Live Player Screen</h3>
+                <span id="player-status-badge" class="badge badge-blue" style="background-color: #e2e8f0; color: #64748b;">Offline</span>
+            </div>
+
+            <!-- Feed Window -->
+            <div class="live-feed-window" id="live-window">
+                    <video id="hls-player" controls autoplay muted style="display: none; width: 100%; max-height: 480px; background: #000;"></video>
+
+                    <!-- Offline State -->
+                    <div class="live-placeholder" id="player-offline-view" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M2 2l20 20M21 7.5V11a2 2 0 0 1-.5 1.3l-1.37 1.37M10.66 6H14a2 2 0 0 1 2 2v3.34M16 16a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h1"/>
+                        </svg>
+                        <h4>Stream is offline</h4>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem;">Choose a channel and click Tune In when a pastor is broadcasting via OBS.</p>
+                    </div>
+            </div>
+
+            <div style="margin-top: 1rem; font-size: 0.85rem; color: #64748b; line-height: 1.4;">
+                <p><strong>Note:</strong> Starting a broadcast requires webcam access. Logged-in viewers will immediately see a notification when the selected pastor goes live.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const stateSelect = document.getElementById("state-select");
+    const pastorSelect = document.getElementById("pastor-select");
+    const streamControls = document.getElementById("stream-controls");
+    const selectionPrompt = document.getElementById("selection-prompt");
+    const currentStreamKey = document.getElementById("current-stream-key");
+
+    const btnTune = document.getElementById("btn-tune-in");
+    const playerTitle = document.getElementById("player-title");
+    const playerStatus = document.getElementById("player-status-badge");
+    const offlineView = document.getElementById("player-offline-view");
+    const hlsPlayer = document.getElementById("hls-player");
+
+    const hlsBaseUrl = "{{ hls_base_url }}";
+
+    let pollInterval = null;
+    let hls = null;
+
+    function getCSRFToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta && meta.content) {
+            return meta.content;
+        }
+        const name = 'csrftoken=';
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            cookie = cookie.trim();
+            if (cookie.startsWith(name)) {
+                return decodeURIComponent(cookie.substring(name.length));
+            }
+        }
+        return '';
+    }
+
+    function resetPlayer() {
+        if (hls) {
+            hls.destroy();
+            hls = null;
+        }
+        hlsPlayer.pause();
+        hlsPlayer.removeAttribute('src');
+        hlsPlayer.load();
+        hlsPlayer.style.display = 'none';
+        offlineView.style.display = 'flex';
+
+        playerStatus.textContent = 'Offline';
+        playerStatus.className = 'badge';
+        playerStatus.style.backgroundColor = '#e2e8f0';
+        playerStatus.style.color = '#64748b';
+        playerTitle.textContent = 'Live Player Screen';
+    }
+
+    function setStreamKeyLabel() {
+        if (!currentStreamKey) {
+            return;
+        }
+        const selectedOption = pastorSelect.options[pastorSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.dataset.streamKey) {
+            currentStreamKey.textContent = 'Select your pastor channel';
+            return;
+        }
+        currentStreamKey.textContent = selectedOption.dataset.streamKey;
+    }
+
+    function buildHlsUrl(streamKey) {
+        return `${hlsBaseUrl}/${streamKey}.m3u8`;
+    }
+
+    function loadPastorsForState(stateId, selectedPastorId = null) {
+        pastorSelect.innerHTML = '<option value="">Choose Pastor</option>';
+        pastorSelect.disabled = true;
+        streamControls.style.display = 'none';
+        selectionPrompt.style.display = 'block';
+        resetPlayer();
+        if (currentStreamKey) {
+            currentStreamKey.textContent = 'Select your pastor channel';
+        }
+
+        if (!stateId) return Promise.resolve();
+
+        return fetch(`/api/pastors/?state_id=${stateId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.pastors && data.pastors.length > 0) {
+                    pastorSelect.disabled = false;
+                    data.pastors.forEach(p => {
+                        const option = document.createElement('option');
+                        option.value = p.id;
+                        option.textContent = `Pastor ${p.name}`;
+                        option.dataset.streamKey = p.stream_key;
+                        if (selectedPastorId && String(p.id) === String(selectedPastorId)) {
+                            option.selected = true;
+                        }
+                        pastorSelect.appendChild(option);
+                    });
+                    
+                    if (selectedPastorId) {
+                        streamControls.style.display = 'block';
+                        selectionPrompt.style.display = 'none';
+                        setStreamKeyLabel();
+                    }
+                } else {
+                    const option = document.createElement('option');
+                    option.textContent = 'No Pastors in State';
+                    pastorSelect.appendChild(option);
+                }
+            });
+    }
+
+    stateSelect.addEventListener('change', function() {
+        loadPastorsForState(this.value);
+    });
+
+    pastorSelect.addEventListener('change', function() {
+        resetPlayer();
+        if (this.value && stateSelect.value) {
+            streamControls.style.display = 'block';
+            selectionPrompt.style.display = 'none';
+        } else {
+            streamControls.style.display = 'none';
+            selectionPrompt.style.display = 'block';
+        }
+        setStreamKeyLabel();
+    });
+
+    const nginxStatusText = document.getElementById('nginx-status-text');
+    const btnStartNginx = document.getElementById('btn-start-nginx');
+
+    function updateNginxStatus() {
+        if (!nginxStatusText || !btnStartNginx) return;
+        fetch('/api/nginx/status/')
+            .then(res => res.json())
+            .then(data => {
+                if (data.running) {
+                    nginxStatusText.textContent = 'Running';
+                    nginxStatusText.style.color = '#16a34a';
+                    btnStartNginx.style.display = 'none';
+                } else {
+                    nginxStatusText.textContent = 'Stopped';
+                    nginxStatusText.style.color = '#dc2626';
+                    btnStartNginx.style.display = 'block';
+                }
+            })
+            .catch(() => {
+                if (nginxStatusText) {
+                    nginxStatusText.textContent = 'Unknown';
+                    nginxStatusText.style.color = '#f59e0b';
+                }
+                if (btnStartNginx) btnStartNginx.style.display = 'block';
+            });
+    }
+
+    function startNginx() {
+        if (!btnStartNginx) return;
+        btnStartNginx.disabled = true;
+        btnStartNginx.textContent = 'Starting Nginx...';
+
+        fetch('/api/nginx/start/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+            },
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'started' || data.status === 'running') {
+                    if (nginxStatusText) { nginxStatusText.textContent = 'Running'; nginxStatusText.style.color = '#16a34a'; }
+                    btnStartNginx.style.display = 'none';
+                } else {
+                    if (nginxStatusText) { nginxStatusText.textContent = `Error: ${data.error || 'Unable to start'}`; nginxStatusText.style.color = '#dc2626'; }
+                    btnStartNginx.style.display = 'block';
+                }
+            })
+            .catch(() => {
+                if (nginxStatusText) { nginxStatusText.textContent = 'Error starting Nginx'; nginxStatusText.style.color = '#dc2626'; }
+                if (btnStartNginx) btnStartNginx.style.display = 'block';
+            })
+            .finally(() => {
+                btnStartNginx.disabled = false;
+                btnStartNginx.textContent = 'Start Nginx';
+                updateNginxStatus();
+            });
+    }
+
+    if (btnStartNginx) btnStartNginx.addEventListener('click', startNginx);
+
+    updateNginxStatus();
+
+    function checkStreamStatus(stateId, pastorId, streamKey) {
+        fetch(`/api/livestream/status/?state_id=${stateId}&pastor_id=${pastorId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.active) {
+                    const hlsUrl = buildHlsUrl(streamKey);
+                    offlineView.style.display = 'none';
+                    hlsPlayer.style.display = 'block';
+                    playerStatus.textContent = 'LIVE';
+                    playerStatus.className = 'badge badge-red';
+                    playerStatus.style.backgroundColor = 'var(--red-primary)';
+                    playerStatus.style.color = '#ffffff';
+                    playerTitle.textContent = `Live - ${pastorSelect.options[pastorSelect.selectedIndex].text}`;
+
+                    if (Hls.isSupported()) {
+                        if (!hls) {
+                            hls = new Hls({
+                                liveSyncDurationCount: 3,
+                                liveMaxLatencyDurationCount: 10,
+                                enableWorker: true
+                            });
+                            hls.loadSource(hlsUrl);
+                            hls.attachMedia(hlsPlayer);
+                            hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                                hlsPlayer.play().catch(() => {});
+                            });
+                            hls.on(Hls.Events.ERROR, function(event, errData) {
+                                if (errData.fatal) {
+                                    switch (errData.type) {
+                                        case Hls.ErrorTypes.NETWORK_ERROR:
+                                            console.log("Fatal network error encountered, trying to recover...");
+                                            hls.startLoad();
+                                            break;
+                                        case Hls.ErrorTypes.MEDIA_ERROR:
+                                            console.log("Fatal media error encountered, trying to recover...");
+                                            hls.recoverMediaError();
+                                            break;
+                                        default:
+                                            console.log("Unrecoverable HLS error, resetting player.");
+                                            resetPlayer();
+                                            break;
+                                    }
+                                }
+                            });
+                        }
+                    } else {
+                        if (hlsPlayer.src !== hlsUrl) {
+                            hlsPlayer.src = hlsUrl;
+                            hlsPlayer.play().catch(() => {});
+                        }
+                    }
+                } else {
+                    resetPlayer();
+                    offlineView.querySelector('h4').textContent = 'Stream Offline';
+                    offlineView.querySelector('p').textContent = `${pastorSelect.options[pastorSelect.selectedIndex].text} is not currently broadcasting.`;
+                }
+            });
+    }
+
+    btnTune.addEventListener('click', function() {
+        const stateId = stateSelect.value;
+        const pastorId = pastorSelect.value;
+        const streamKey = pastorSelect.options[pastorSelect.selectedIndex]?.dataset?.streamKey;
+
+        if (!stateId || !pastorId || !streamKey) return;
+        resetPlayer();
+        playerStatus.textContent = 'Checking...';
+        playerTitle.textContent = `Tuned into: ${pastorSelect.options[pastorSelect.selectedIndex].text}`;
+
+        checkStreamStatus(stateId, pastorId, streamKey);
+        if (pollInterval) {
+            clearInterval(pollInterval);
+        }
+        pollInterval = setInterval(() => checkStreamStatus(stateId, pastorId, streamKey), 3000);
+    });
+
+    const defaultStateId = "{{ default_state_id }}";
+    const defaultPastorId = "{{ default_pastor_id }}";
+
+    if (defaultStateId && defaultPastorId) {
+        stateSelect.value = defaultStateId;
+        loadPastorsForState(defaultStateId, defaultPastorId).then(() => {
+            btnTune.click();
+        });
+    }
+});
+</script>
+{% endblock %}

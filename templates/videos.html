@@ -1,0 +1,229 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Sermons & Reports Gallery | India Missions Portal{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <div>
+            <h1 style="color: var(--blue-primary); font-size: 2.2rem; font-weight: 800;">Missions Sermons & Reports</h1>
+            <p style="color: #64748b; margin-top: 0.25rem;">Watch testimonies, sermon uploads, and work reports from active mission fields.</p>
+        </div>
+        {% if user.is_pastor or user.is_staff or user.is_superuser %}
+        <a href="{% url 'upload_video' %}" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-upload"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+            Upload New Video
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <form method="get" class="filter-form" id="filter-form">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="state-select" style="font-size: 0.85rem; font-weight: bold;">Filter by State</label>
+                <select name="state" id="state-select" class="form-select">
+                    <option value="">All States</option>
+                    {% for s in states %}
+                        <option value="{{ s.id }}" {% if selected_state == s.id %}selected{% endif %}>
+                            {{ s.name }} ({% if s.status == 'RED' %}Unreached{% else %}Reached{% endif %})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="pastor-select" style="font-size: 0.85rem; font-weight: bold;">Filter by Pastor</label>
+                <select name="pastor" id="pastor-select" class="form-select">
+                    <option value="">All Pastors</option>
+                    {% for p in pastors %}
+                        <option value="{{ p.id }}" {% if selected_pastor == p.id %}selected{% endif %}>
+                            Pastor {{ p.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div style="display: flex; gap: 0.75rem;">
+                <button type="submit" class="btn btn-primary">Apply Filters</button>
+                <a href="{% url 'videos' %}" class="btn btn-outline" style="line-height: 1.2;">Reset</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Grouped Videos and Ungrouped Videos -->
+    {% if has_videos %}
+        <!-- Render Grouped Videos -->
+        {% for group_dict in grouped_videos %}
+            <div style="margin-top: 3rem; margin-bottom: 2rem;">
+                <h3 style="color: var(--blue-primary); border-bottom: 2.5px solid var(--blue-medium); padding-bottom: 0.5rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 800;">📂 Series: {{ group_dict.group.name }}</span>
+                    <span style="font-size: 0.85rem; background: var(--blue-light); color: var(--blue-primary); padding: 0.25rem 0.75rem; border-radius: 20px; font-weight: bold;">
+                        {{ group_dict.videos|length }} Video{{ group_dict.videos|pluralize }}
+                    </span>
+                </h3>
+                {% if group_dict.group.description %}
+                    <p style="color: #64748b; font-size: 0.95rem; margin-top: -1rem; margin-bottom: 1.5rem; font-style: italic;">
+                        {{ group_dict.group.description }}
+                    </p>
+                {% endif %}
+                <div class="video-grid">
+                    {% for video in group_dict.videos %}
+                        <div class="video-card">
+                            <div class="video-player-wrapper">
+                                <video controls preload="metadata">
+                                    <source src="{{ video.video_file.url }}" type="video/mp4">
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                            
+                            <div class="video-info">
+                                <h4 style="color: var(--blue-primary); margin-bottom: 0.4rem; font-weight: 700;">{{ video.title }}</h4>
+                                
+                                <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                                    <span class="badge {% if video.state.status == 'RED' %}badge-red{% else %}badge-blue{% endif %}">
+                                        {{ video.state.name }}
+                                    </span>
+                                    <span class="badge badge-blue">
+                                        Pastor {{ video.pastor.name }}
+                                    </span>
+                                </div>
+                                
+
+                                <div class="video-meta">
+                                    <span>Uploaded by: {{ video.uploaded_by.username|default:"System" }}</span>
+                                    <span>{{ video.uploaded_at|date:"M d, Y" }}</span>
+                                </div>
+
+                                {% if video.uploaded_by == user or user.is_staff or user.is_superuser %}
+                                <div style="display: flex; gap: 0.5rem; margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 0.75rem;">
+                                    <a href="{% url 'edit_video' video.id %}" class="btn btn-outline" style="flex: 1; padding: 0.4rem; font-size: 0.85rem; border-radius: var(--radius-sm); border-color: var(--blue-medium); color: var(--blue-medium); font-weight: bold; display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                        Edit
+                                    </a>
+                                    
+                                    <form method="post" action="{% url 'delete_video' video.id %}" onsubmit="return confirm('Are you sure you want to delete this video report? This action cannot be undone.');" style="flex: 1; display: flex;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-danger" style="width: 100%; padding: 0.4rem; font-size: 0.85rem; border-radius: var(--radius-sm); background: var(--red-primary); color: #ffffff; font-weight: bold; display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem; border: none; cursor: pointer;">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                                            Delete
+                                        </button>
+                                    </form>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+
+        <!-- Render Ungrouped Videos -->
+        {% if ungrouped_videos %}
+            <div style="margin-top: 3rem; margin-bottom: 2rem;">
+                <h3 style="color: var(--blue-primary); border-bottom: 2.5px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 800;">🎥 General Mission Reports & Sermons</span>
+                    <span style="font-size: 0.85rem; background: #f1f5f9; color: #475569; padding: 0.25rem 0.75rem; border-radius: 20px; font-weight: bold;">
+                        {{ ungrouped_videos|length }} Video{{ ungrouped_videos|pluralize }}
+                    </span>
+                </h3>
+                <div class="video-grid">
+                    {% for video in ungrouped_videos %}
+                        <div class="video-card">
+                            <div class="video-player-wrapper">
+                                <video controls preload="metadata">
+                                    <source src="{{ video.video_file.url }}" type="video/mp4">
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                            
+                            <div class="video-info">
+                                <h4 style="color: var(--blue-primary); margin-bottom: 0.4rem; font-weight: 700;">{{ video.title }}</h4>
+                                
+                                <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                                    <span class="badge {% if video.state.status == 'RED' %}badge-red{% else %}badge-blue{% endif %}">
+                                        {{ video.state.name }}
+                                    </span>
+                                    <span class="badge badge-blue">
+                                        Pastor {{ video.pastor.name }}
+                                    </span>
+                                </div>
+                                
+
+                                <div class="video-meta">
+                                    <span>Uploaded by: {{ video.uploaded_by.username|default:"System" }}</span>
+                                    <span>{{ video.uploaded_at|date:"M d, Y" }}</span>
+                                </div>
+
+                                {% if video.uploaded_by == user or user.is_staff or user.is_superuser %}
+                                <div style="display: flex; gap: 0.5rem; margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 0.75rem;">
+                                    <a href="{% url 'edit_video' video.id %}" class="btn btn-outline" style="flex: 1; padding: 0.4rem; font-size: 0.85rem; border-radius: var(--radius-sm); border-color: var(--blue-medium); color: var(--blue-medium); font-weight: bold; display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                        Edit
+                                    </a>
+                                    
+                                    <form method="post" action="{% url 'delete_video' video.id %}" onsubmit="return confirm('Are you sure you want to delete this video report? This action cannot be undone.');" style="flex: 1; display: flex;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-danger" style="width: 100%; padding: 0.4rem; font-size: 0.85rem; border-radius: var(--radius-sm); background: var(--red-primary); color: #ffffff; font-weight: bold; display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem; border: none; cursor: pointer;">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                                            Delete
+                                        </button>
+                                    </form>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="card" style="text-align: center; padding: 4rem 2rem; border-style: dashed; border-width: 2px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-video-off" style="margin-bottom: 1rem;"><path d="M10.66 6H14a2 2 0 0 1 2 2v3.34"/><path d="M16 16a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h1"/><path d="m2 2 20 20"/><path d="M21 7.5V11a2 2 0 0 1-.5 1.3l-1.37 1.37"/></svg>
+            <h3 style="color: var(--blue-primary); margin-bottom: 0.5rem;">No Videos Found</h3>
+            <p style="color: #64748b;">There are currently no report or sermon videos uploaded matching your filter criteria.</p>
+            {% if user.is_pastor or user.is_staff or user.is_superuser %}
+            <a href="{% url 'upload_video' %}" class="btn btn-primary" style="margin-top: 1.5rem;">Upload the First Video</a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const stateSelect = document.getElementById("state-select");
+    const pastorSelect = document.getElementById("pastor-select");
+
+    // Dynamic pastor loading based on state selection
+    stateSelect.addEventListener("change", function() {
+        const stateId = this.value;
+        
+        // Clear current pastor options except first option
+        pastorSelect.innerHTML = '<option value="">All Pastors</option>';
+        
+        if (!stateId) {
+            return;
+        }
+
+        // Fetch pastors for chosen state via API
+        fetch(`/api/pastors/?state_id=${stateId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.pastors && data.pastors.length > 0) {
+                    data.pastors.forEach(pastor => {
+                        const option = document.createElement("option");
+                        option.value = pastor.id;
+                        option.textContent = `Pastor ${pastor.name}`;
+                        pastorSelect.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => console.error("Error loading pastors:", error));
+    });
+});
+</script>
+{% endblock %}
+

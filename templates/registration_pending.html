@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Registration Pending | India Missions Portal{% endblock %}
+
+{% block content %}
+<div class="container" style="display: flex; align-items: center; justify-content: center; min-height: 70vh;">
+    <div class="card" style="max-width: 560px; width: 100%; padding: 3rem 2.5rem; text-align: center;">
+
+        <!-- Animated Clock Icon -->
+        <div style="width: 90px; height: 90px; background: linear-gradient(135deg, #eff6ff, #dbeafe); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; border: 3px solid #bfdbfe;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin-slow 8s linear infinite;">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+        </div>
+
+        <h1 style="color: var(--blue-primary); font-size: 1.8rem; font-weight: 800; margin-bottom: 0.75rem;">Registration Submitted!</h1>
+        <p style="color: #2563eb; font-weight: 600; font-size: 1rem; margin-bottom: 1.5rem;">Pending Pastor Approval</p>
+
+        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-md); padding: 1.5rem; text-align: left; margin-bottom: 1.5rem;">
+            <h4 style="color: var(--blue-primary); margin-bottom: 1rem; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">What happens next:</h4>
+            <div style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
+                <span style="background: var(--blue-primary); color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; margin-top: 2px;">1</span>
+                <p style="margin: 0; color: #475569; font-size: 0.9rem;">An email notification has been sent to <strong>Pastor {{ pastor_name }}</strong> with your registration details.</p>
+            </div>
+            <div style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
+                <span style="background: var(--blue-primary); color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; margin-top: 2px;">2</span>
+                <p style="margin: 0; color: #475569; font-size: 0.9rem;">The pastor will review and approve or reject your account from the email or their dashboard.</p>
+            </div>
+            <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+                <span style="background: var(--blue-primary); color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; margin-top: 2px;">3</span>
+                <p style="margin: 0; color: #475569; font-size: 0.9rem;">Once approved, you'll receive a confirmation email and can log in to access the portal.</p>
+            </div>
+        </div>
+
+        {% if pastor_has_email %}
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: var(--radius-sm); padding: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; color: #166534;">
+            ✅ Notification email sent to Pastor {{ pastor_name }}.
+        </div>
+        {% else %}
+        <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-sm); padding: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; color: #92400e;">
+            ⚠️ Pastor {{ pastor_name }} does not have an email on file. Please contact them directly to approve your account.
+        </div>
+        {% endif %}
+
+        <p style="color: #64748b; font-size: 0.85rem; margin-bottom: 1.5rem;">Typical approval time is within 24–48 hours. Please be patient.</p>
+
+        <a href="{% url 'login' %}" class="btn btn-primary" style="display: inline-block;">Back to Login</a>
+    </div>
+</div>
+
+<style>
+@keyframes spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}

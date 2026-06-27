@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}Login | India Missions Portal{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card form-card">
+        <h2 style="text-align: center; margin-bottom: 0.5rem; color: var(--blue-primary);">Pastor & Member Login</h2>
+        <p style="text-align: center; margin-bottom: 2rem; color: #64748b; font-size: 0.95rem;">Access the Sermons, Reports, and Live Stream dashboard.</p>
+        
+        <form method="post" novalidate>
+            {% csrf_token %}
+            
+            {% if approval_message %}
+                <div style="background-color: {% if approval_type == 'pending' %}#fffbeb; border-color: #fde68a; color: #b45309{% else %}#fff5f5; border-color: #fed7d7; color: #c53030{% endif %}; border: 1px solid; padding: 0.75rem 1rem; border-radius: var(--radius-sm); margin-bottom: 1.5rem; font-size: 0.9rem; font-weight: 500;">
+                    {{ approval_message }}
+                </div>
+            {% endif %}
+            
+            {% if form.non_field_errors %}
+                <div style="background-color: var(--red-light); border: 1px solid var(--red-medium); color: var(--red-primary); padding: 0.75rem 1rem; border-radius: var(--radius-sm); margin-bottom: 1.5rem; font-size: 0.9rem;">
+                    {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            
+            {% for field in form %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}
+                        <span class="text-important" style="font-size: 0.85rem; display: block; margin-top: 0.25rem;">
+                            {{ field.errors.0 }}
+                        </span>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            
+            <button type="submit" class="btn btn-primary btn-full" style="margin-top: 1rem;">Login</button>
+        </form>
+        
+        <div style="text-align: center; margin-top: 2rem; font-size: 0.95rem;">
+            <p>New to the portal? <a href="{% url 'signup' %}" style="font-weight: 600;">Sign up with referral code</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

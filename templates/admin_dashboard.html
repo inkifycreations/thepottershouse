@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Dashboard | India Missions Portal{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Header -->
+    <div style="margin-bottom: 2rem;">
+        <h1 style="color: var(--blue-primary); font-size: 2rem; font-weight: 800;">Admin Dashboard</h1>
+        <p style="color: #64748b; margin-top: 0.25rem;">System-wide overview of all registrations and approvals.</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1.25rem; margin-bottom: 2.5rem;">
+        <div class="card" style="padding: 1.5rem; text-align: center; border-top: 4px solid var(--blue-medium);">
+            <div style="font-size: 2.2rem; font-weight: 800; color: var(--blue-primary);">{{ stats.total_users }}</div>
+            <div style="color: #64748b; font-size: 0.875rem; font-weight: 500;">Total Users</div>
+        </div>
+        <div class="card" style="padding: 1.5rem; text-align: center; border-top: 4px solid #f59e0b;">
+            <div style="font-size: 2.2rem; font-weight: 800; color: #b45309;">{{ stats.pending }}</div>
+            <div style="color: #64748b; font-size: 0.875rem; font-weight: 500;">Pending</div>
+        </div>
+        <div class="card" style="padding: 1.5rem; text-align: center; border-top: 4px solid #16a34a;">
+            <div style="font-size: 2.2rem; font-weight: 800; color: #15803d;">{{ stats.approved }}</div>
+            <div style="color: #64748b; font-size: 0.875rem; font-weight: 500;">Approved</div>
+        </div>
+        <div class="card" style="padding: 1.5rem; text-align: center; border-top: 4px solid var(--red-primary);">
+            <div style="font-size: 2.2rem; font-weight: 800; color: var(--red-primary);">{{ stats.rejected }}</div>
+            <div style="color: #64748b; font-size: 0.875rem; font-weight: 500;">Rejected</div>
+        </div>
+        <div class="card" style="padding: 1.5rem; text-align: center; border-top: 4px solid #8b5cf6;">
+            <div style="font-size: 2.2rem; font-weight: 800; color: #6d28d9;">{{ stats.total_pastors }}</div>
+            <div style="color: #64748b; font-size: 0.875rem; font-weight: 500;">Pastors</div>
+        </div>
+    </div>
+
+    {% if messages %}
+    {% for message in messages %}
+    <div style="background: {% if message.tags == 'error' %}#fff5f5; border-color: #fed7d7; color: #c53030{% else %}#f0fdf4; border-color: #bbf7d0; color: #166534{% endif %}; border: 1px solid; border-radius: var(--radius-sm); padding: 1rem 1.25rem; margin-bottom: 1.5rem; font-weight: 500;">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- Filter Bar -->
+    <div class="card" style="padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+        <form method="get" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; width: 100%;">
+            <select name="status" style="padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.875rem; color: #475569;" onchange="this.form.submit()">
+                <option value="">All Statuses</option>
+                <option value="pending" {% if filter_status == 'pending' %}selected{% endif %}>⏳ Pending</option>
+                <option value="approved" {% if filter_status == 'approved' %}selected{% endif %}>✅ Approved</option>
+                <option value="rejected" {% if filter_status == 'rejected' %}selected{% endif %}>❌ Rejected</option>
+            </select>
+            <select name="pastor" style="padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.875rem; color: #475569;" onchange="this.form.submit()">
+                <option value="">All Pastors</option>
+                {% for pastor in pastors %}
+                <option value="{{ pastor.id }}" {% if filter_pastor == pastor.id|stringformat:"s" %}selected{% endif %}>Pastor {{ pastor.name }}</option>
+                {% endfor %}
+            </select>
+            <span style="color: #94a3b8; font-size: 0.85rem;">{{ users.count }} result{{ users.count|pluralize }}</span>
+        </form>
+    </div>
+
+    <!-- Users Table -->
+    <div class="card" style="padding: 0; overflow: hidden; margin-bottom: 2rem;">
+        <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-color);">
+            <h3 style="margin: 0; color: var(--blue-primary); font-size: 1.1rem;">All Registered Users</h3>
+        </div>
+        <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+            <thead>
+                <tr style="background: #f8fafc; text-align: left;">
+                    <th style="padding: 0.75rem 1rem; color: #64748b; font-weight: 600; border-bottom: 1px solid var(--border-color);">Username</th>
+                    <th style="padding: 0.75rem 1rem; color: #64748b; font-weight: 600; border-bottom: 1px solid var(--border-color);">Email</th>
+                    <th style="padding: 0.75rem 1rem; color: #64748b; font-weight: 600; border-bottom: 1px solid var(--border-color);">Referred By</th>
+                    <th style="padding: 0.75rem 1rem; color: #64748b; font-weight: 600; border-bottom: 1px solid var(--border-color);">Status</th>
+                    <th style="padding: 0.75rem 1rem; color: #64748b; font-weight: 600; border-bottom: 1px solid var(--border-color);">Joined</th>
+                    <th style="padding: 0.75rem 1rem; color: #64748b; font-weight: 600; border-bottom: 1px solid var(--border-color);">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr style="border-bottom: 1px solid var(--border-color);" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+                    <td style="padding: 0.75rem 1rem; font-weight: 600; color: var(--blue-primary);">{{ user.username }}</td>
+                    <td style="padding: 0.75rem 1rem; color: #475569;">{{ user.email|default:"—" }}</td>
+                    <td style="padding: 0.75rem 1rem; color: #475569;">
+                        {% if user.referred_by %}Pastor {{ user.referred_by.name }}{% elif user.is_superuser %}Admin{% elif user.is_pastor %}Pastor{% else %}—{% endif %}
+                    </td>
+                    <td style="padding: 0.75rem 1rem;">
+                        {% if user.approval_status == 'approved' %}
+                            <span style="background: #dcfce7; color: #166534; padding: 0.2rem 0.65rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">✅ Approved</span>
+                        {% elif user.approval_status == 'pending' %}
+                            <span style="background: #fef3c7; color: #92400e; padding: 0.2rem 0.65rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">⏳ Pending</span>
+                        {% else %}
+                            <span style="background: #fee2e2; color: #991b1b; padding: 0.2rem 0.65rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">❌ Rejected</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 0.75rem 1rem; color: #64748b;">{{ user.date_joined|date:"M d, Y" }}</td>
+                    <td style="padding: 0.75rem 1rem;">
+                        {% if user.approval_status == 'pending' %}
+                        <div style="display: flex; gap: 0.5rem;">
+                            <form method="post" action="{% url 'admin_approve_action' user.id %}">
+                                {% csrf_token %}
+                                <button type="submit" style="padding: 0.3rem 0.7rem; background: #16a34a; color: white; border: none; border-radius: var(--radius-sm); font-weight: 600; font-size: 0.78rem; cursor: pointer;">Approve</button>
+                            </form>
+                            <form method="post" action="{% url 'admin_reject_action' user.id %}">
+                                {% csrf_token %}
+                                <button type="submit" style="padding: 0.3rem 0.7rem; background: var(--red-primary); color: white; border: none; border-radius: var(--radius-sm); font-weight: 600; font-size: 0.78rem; cursor: pointer;">Reject</button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <span style="color: #94a3b8; font-size: 0.8rem;">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" style="padding: 2rem; text-align: center; color: #94a3b8;">No users found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+
+    <!-- Approval Log -->
+    <div class="card" style="padding: 0; overflow: hidden;">
+        <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-color);">
+            <h3 style="margin: 0; color: var(--blue-primary); font-size: 1.1rem;">System-wide Approval Log</h3>
+        </div>
+        {% if approval_logs %}
+        <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+            <thead>
+                <tr style="background: #f8fafc; text-align: left;">
+                    <th style="padding: 0.75rem 1rem; color: #64748b; font-weight: 600; border-bottom: 1px solid var(--border-color);">User</th>
+                    <th style="padding: 0.75rem 1rem; color: #64748b; font-weight: 600; border-bottom: 1px solid var(--border-color);">Pastor</th>
+                    <th style="padding: 0.75rem 1rem; color: #64748b; font-weight: 600; border-bottom: 1px solid var(--border-color);">Action</th>
+                    <th style="padding: 0.75rem 1rem; color: #64748b; font-weight: 600; border-bottom: 1px solid var(--border-color);">Notes</th>
+                    <th style="padding: 0.75rem 1rem; color: #64748b; font-weight: 600; border-bottom: 1px solid var(--border-color);">Via</th>
+                    <th style="padding: 0.75rem 1rem; color: #64748b; font-weight: 600; border-bottom: 1px solid var(--border-color);">Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in approval_logs %}
+                <tr style="border-bottom: 1px solid var(--border-color);">
+                    <td style="padding: 0.75rem 1rem; font-weight: 600; color: var(--blue-primary);">{{ log.user.username }}</td>
+                    <td style="padding: 0.75rem 1rem; color: #475569;">{% if log.pastor %}{{ log.pastor.name }}{% else %}—{% endif %}</td>
+                    <td style="padding: 0.75rem 1rem;">
+                        {% if log.action == 'approved' %}<span style="color: #16a34a; font-weight: 600;">✅ Approved</span>
+                        {% else %}<span style="color: #c53030; font-weight: 600;">❌ Rejected</span>{% endif %}
+                    </td>
+                    <td style="padding: 0.75rem 1rem; color: #475569;">{{ log.notes|default:"—" }}</td>
+                    <td style="padding: 0.75rem 1rem; color: #64748b; font-size: 0.8rem;">
+                        {% if log.via_email_link %}📧 Email{% else %}📊 Dashboard{% endif %}
+                    </td>
+                    <td style="padding: 0.75rem 1rem; color: #64748b;">{{ log.timestamp|date:"M d, Y g:i A" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}
+        <div style="padding: 2rem; text-align: center; color: #94a3b8;">No approval actions yet.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

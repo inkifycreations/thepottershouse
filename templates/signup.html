@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block title %}Sign Up | India Missions Portal{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card form-card" style="max-width: 550px;">
+        <h2 style="text-align: center; margin-bottom: 0.5rem; color: var(--blue-primary);">Missions Registration</h2>
+        <p style="text-align: center; margin-bottom: 1.5rem; color: #64748b; font-size: 0.95rem;">Join the Potter's House missions team. Registration is restricted.</p>
+        
+        <form method="post">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div style="background-color: var(--red-light); border: 1px solid var(--red-medium); color: var(--red-primary); padding: 0.75rem 1rem; border-radius: var(--radius-sm); margin-bottom: 1.5rem; font-size: 0.9rem;">
+                    {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            
+            {% for field in form %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}">
+                        {{ field.label }}
+                        {% if field.field.required %}<span class="text-important">*</span>{% endif %}
+                    </label>
+                    {{ field }}
+                    {% if field.help_text %}
+                        <small style="display: block; color: #64748b; margin-top: 0.25rem; font-size: 0.8rem;">
+                            {{ field.help_text }}
+                        </small>
+                    {% endif %}
+                    {% if field.errors %}
+                        <span class="text-important" style="font-size: 0.85rem; display: block; margin-top: 0.25rem; font-weight: 600;">
+                            {{ field.errors.0 }}
+                        </span>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            
+            <button type="submit" class="btn btn-primary btn-full" style="margin-top: 1rem;">Complete Registration</button>
+        </form>
+        
+        <div style="text-align: center; margin-top: 2rem; font-size: 0.95rem;">
+            <p>Already registered? <a href="{% url 'login' %}" style="font-weight: 600;">Login here</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

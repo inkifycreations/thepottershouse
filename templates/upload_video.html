@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if form.instance.id %}Edit Video{% else %}Upload Video{% endif %} | India Missions Portal{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card form-card" style="max-width: 600px;">
+        <h2 style="text-align: center; margin-bottom: 0.5rem; color: var(--blue-primary);">
+            {% if form.instance.id %}Edit Video Report{% else %}Upload Mission Video{% endif %}
+        </h2>
+        <p style="text-align: center; margin-bottom: 2rem; color: #64748b; font-size: 0.95rem;">
+            {% if form.instance.id %}Update the details of your uploaded video report.{% else %}Select state and pastor to reveal the upload form.{% endif %}
+        </p>
+        
+        <!-- Encouraging Bible Verse on Spreading the Gospel -->
+        <div style="background-color: var(--blue-light); border-left: 4px solid var(--blue-medium); padding: 1rem; border-radius: var(--radius-sm); margin-bottom: 2rem; text-align: center; font-style: italic; font-size: 0.9rem; color: var(--blue-primary);">
+            "And he said to them, 'Go into all the world and proclaim the gospel to the whole creation.'" <strong>— Mark 16:15</strong>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" novalidate id="upload-form">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div style="background-color: var(--red-light); border: 1px solid var(--red-medium); color: var(--red-primary); padding: 0.75rem 1rem; border-radius: var(--radius-sm); margin-bottom: 1.5rem; font-size: 0.9rem;">
+                    {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            
+            {% if not user.is_pastor %}
+                <!-- State Select -->
+                <div class="form-group">
+                    <label for="state-select">Select Mission State <span class="text-important">*</span></label>
+                    {{ form.state }}
+                    {% if form.state.errors %}
+                        <span class="text-important" style="font-size: 0.85rem; display: block; margin-top: 0.25rem;">
+                            {{ form.state.errors.0 }}
+                        </span>
+                    {% endif %}
+                </div>
+                
+                <!-- Pastor Select -->
+                <div class="form-group">
+                    <label for="pastor-select">Select Pastor <span class="text-important">*</span></label>
+                    {{ form.pastor }}
+                    {% if form.pastor.errors %}
+                        <span class="text-important" style="font-size: 0.85rem; display: block; margin-top: 0.25rem;">
+                            {{ form.pastor.errors.0 }}
+                        </span>
+                    {% endif %}
+                </div>
+            {% else %}
+                <!-- Read-only info display for logged-in pastors -->
+                <div style="background-color: var(--blue-light); padding: 1.25rem; border-radius: var(--radius-sm); border-left: 4px solid var(--blue-primary); margin-bottom: 1.5rem;">
+                    <h4 style="font-size: 1rem; color: var(--blue-primary); margin-bottom: 0.25rem;">Uploading as Pastor:</h4>
+                    <p style="font-size: 1.1rem; font-weight: bold; color: var(--blue-dark);">
+                        Pastor {{ user.pastor_profile.name }} ({{ user.pastor_profile.state.name }})
+                    </p>
+                    <p style="font-size: 0.85rem; color: #64748b; margin-top: 0.25rem;">
+                        Your video will be automatically filed under your designated state and pastor channel.
+                    </p>
+                </div>
+            {% endif %}
+            
+            <!-- Hidden Upload Fields (Shown only after state & pastor are selected or if pastor is logged in) -->
+            <div id="upload-fields-container" style="display: none; border-top: 2px dashed var(--border-color); padding-top: 1.5rem; margin-top: 1.5rem;">
+                <!-- Video Title -->
+                <div class="form-group">
+                    <label for="id_title">Video Title <span class="text-important">*</span></label>
+                    {{ form.title }}
+                    {% if form.title.errors %}
+                        <span class="text-important" style="font-size: 0.85rem; display: block; margin-top: 0.25rem;">
+                            {{ form.title.errors.0 }}
+                        </span>
+                    {% endif %}
+                </div>
+
+                <!-- Group/Series Selection (Optional) -->
+                <div class="form-group">
+                    <label for="id_group">Add to Series / Group (Optional)</label>
+                    {{ form.group }}
+                    {% if form.group.errors %}
+                        <span class="text-important" style="font-size: 0.85rem; display: block; margin-top: 0.25rem;">
+                            {{ form.group.errors.0 }}
+                        </span>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_new_group_name">Or Create New Series / Group (Optional)</label>
+                    {{ form.new_group_name }}
+                    {% if form.new_group_name.errors %}
+                        <span class="text-important" style="font-size: 0.85rem; display: block; margin-top: 0.25rem;">
+                            {{ form.new_group_name.errors.0 }}
+                        </span>
+                    {% endif %}
+                    <small style="color: #64748b; display: block; margin-top: 0.4rem;">e.g., "Revival Meetings 2026", "Sermon Series on Hope"</small>
+                </div>
+                
+                <!-- Video File -->
+                <div class="form-group">
+                    <label for="id_video_file">Video File <span class="text-important">*</span></label>
+                    {{ form.video_file }}
+                    {% if form.video_file.errors %}
+                        <span class="text-important" style="font-size: 0.85rem; display: block; margin-top: 0.25rem;">
+                            {{ form.video_file.errors.0 }}
+                        </span>
+                    {% endif %}
+                    <small style="color: #64748b; display: block; margin-top: 0.4rem;">Supported formats: MP4, WebM (max 100MB suggested).</small>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-full" style="margin-top: 1rem;">{% if form.instance.id %}Save Changes{% else %}Upload Video{% endif %}</button>
+            </div>
+            
+            <div id="select-prompt" style="background-color: var(--blue-light); border-radius: var(--radius-sm); padding: 1rem; text-align: center; color: var(--blue-primary); font-size: 0.9rem; font-weight: 500;">
+                Please select both a State and a Pastor to enable file uploading.
+            </div>
+        </form>
+        
+        <div style="text-align: center; margin-top: 2rem;">
+            <a href="{% url 'videos' %}" style="font-weight: 600;">&larr; Back to Gallery</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const stateSelect = document.getElementById("state-select");
+    const pastorSelect = document.getElementById("pastor-select");
+    const uploadFields = document.getElementById("upload-fields-container");
+    const selectPrompt = document.getElementById("select-prompt");
+
+    function checkSelection() {
+        if (!stateSelect || !pastorSelect) {
+            // Pastor mode: always show upload fields
+            if (uploadFields) uploadFields.style.display = "block";
+            if (selectPrompt) selectPrompt.style.display = "none";
+            return;
+        }
+        if (stateSelect.value && pastorSelect.value) {
+            uploadFields.style.display = "block";
+            selectPrompt.style.display = "none";
+        } else {
+            uploadFields.style.display = "none";
+            selectPrompt.style.display = "block";
+        }
+    }
+
+    if (stateSelect) {
+        // Dynamic pastor loading based on state selection
+        stateSelect.addEventListener("change", function() {
+            const stateId = this.value;
+            
+            // Clear current pastor options
+            if (pastorSelect) {
+                pastorSelect.innerHTML = '<option value="">Select a Pastor</option>';
+            }
+            if (uploadFields) uploadFields.style.display = "none";
+            if (selectPrompt) selectPrompt.style.display = "block";
+            
+            if (!stateId) {
+                return;
+            }
+
+            // Fetch pastors for chosen state via API
+            fetch(`/api/pastors/?state_id=${stateId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.pastors && data.pastors.length > 0 && pastorSelect) {
+                        data.pastors.forEach(pastor => {
+                            const option = document.createElement("option");
+                            option.value = pastor.id;
+                            option.textContent = `Pastor ${pastor.name}`;
+                            pastorSelect.appendChild(option);
+                        });
+                    }
+                    checkSelection();
+                })
+                .catch(error => {
+                    console.error("Error loading pastors:", error);
+                    checkSelection();
+                });
+        });
+    }
+
+    if (pastorSelect) {
+        pastorSelect.addEventListener("change", checkSelection);
+    }
+    
+    // Check initial state (e.g. if validation fails and page reloads)
+    checkSelection();
+});
+</script>
+{% endblock %}
+

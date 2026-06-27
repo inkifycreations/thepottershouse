@@ -1,0 +1,345 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}India Missions | Potter's House{% endblock %}</title>
+    <script>
+    (function() {
+        const savedTheme = localStorage.getItem("missionsTheme");
+        const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.setAttribute("data-theme", savedTheme || (prefersDark ? "dark" : "light"));
+    })();
+    </script>
+    
+    <!-- Link our custom CSS -->
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    
+    <!-- Meta tag for AJAX CSRF tokens -->
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+    {% if user.is_authenticated and user.referred_by %}
+    <div id="live-notification-banner" style="display: none; background: linear-gradient(135deg, var(--red-primary) 0%, var(--red-medium) 100%); color: white; padding: 0.75rem 2rem; text-align: center; font-weight: 500; box-shadow: var(--shadow-md); position: relative; z-index: 1000; animation: slideDown 0.5s ease-out;">
+        <div style="display: inline-flex; align-items: center; gap: 0.75rem; justify-content: center; width: 100%; flex-wrap: wrap;">
+            <span style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; font-weight: bold; background: rgba(255,255,255,0.25); padding: 0.25rem 0.6rem; border-radius: 20px;">
+                <span style="width: 8px; height: 8px; background: white; border-radius: 50%; display: inline-block; animation: pulse-live 1s infinite;"></span>
+                LIVE NOW
+            </span>
+            <span style="font-size: 0.95rem; letter-spacing: 0.2px;">
+                Pastor <strong id="live-banner-pastor">...</strong> is broadcasting live from <strong id="live-banner-state">...</strong>!
+            </span>
+            <a href="{% url 'live_stream' %}" class="btn" style="background: white; color: var(--red-primary); padding: 0.35rem 1rem; font-size: 0.85rem; font-weight: bold; border-radius: var(--radius-sm); border: none; margin-left: 0.5rem; transition: var(--transition); box-shadow: var(--shadow-sm); display: inline-block;">
+                Watch Stream
+            </a>
+        </div>
+    </div>
+
+    <style>
+    @keyframes slideDown {
+        from { transform: translateY(-100%); }
+        to { transform: translateY(0); }
+    }
+    @keyframes pulse-live {
+        0% { transform: scale(0.9); opacity: 0.6; }
+        50% { transform: scale(1.1); opacity: 1; }
+        100% { transform: scale(0.9); opacity: 0.6; }
+    }
+    </style>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Only check if we are not already on the livestream page
+        if (window.location.pathname.indexOf('/livestream/') !== -1) {
+            return;
+        }
+
+        const banner = document.getElementById("live-notification-banner");
+        const bannerPastor = document.getElementById("live-banner-pastor");
+        const bannerState = document.getElementById("live-banner-state");
+
+        function checkLiveStatus() {
+            fetch("/api/livestream/status/")
+                .then(res => res.json())
+                .then(data => {
+                    if (data.active) {
+                        bannerPastor.textContent = data.pastor_name;
+                        bannerState.textContent = data.state_name;
+                        banner.style.display = "block";
+                    } else {
+                        banner.style.display = "none";
+                    }
+                })
+                .catch(() => {});
+        }
+
+        // Check immediately on load
+        checkLiveStatus();
+        // Poll every 10 seconds
+        setInterval(checkLiveStatus, 10000);
+    });
+    </script>
+    {% endif %}
+
+    {% if church_popup_events %}
+    <div class="event-popup-overlay" id="church-event-popup" role="dialog" aria-modal="true" aria-labelledby="church-event-popup-title">
+        <div class="event-popup">
+            <button type="button" class="event-popup-close" id="church-event-popup-close" aria-label="Close event popup">&times;</button>
+            <div class="event-popup-header">
+                <span class="event-popup-kicker">
+                    {% if church_popup_is_visitor_view %}
+                        Events From Our Pastors
+                    {% else %}
+                        Pastor {{ user.referred_by.name }}'s Events
+                    {% endif %}
+                </span>
+                <h2 id="church-event-popup-title">Upcoming Church Events</h2>
+                <p>
+                    {% if church_popup_is_visitor_view %}
+                        Special prayers, meetings, and services from Potter's House pastors.
+                    {% else %}
+                        Special prayers, meetings, and services selected for your pastor's believers.
+                    {% endif %}
+                </p>
+            </div>
+            <div class="event-popup-list">
+                {% for event in church_popup_events %}
+                <article class="event-popup-item">
+                    <div class="event-popup-date">
+                        <span>{{ event.starts_at|date:"M" }}</span>
+                        <strong>{{ event.starts_at|date:"d" }}</strong>
+                    </div>
+                    <div class="event-popup-body">
+                        <div class="event-popup-meta">{{ event.get_event_type_display }} | {{ event.starts_at|date:"D, g:i A" }}</div>
+                        <h3>{{ event.title }}</h3>
+                        {% if church_popup_is_visitor_view %}
+                            <div class="event-popup-pastor">Pastor {{ event.pastor.name }}{% if event.pastor.state %} | {{ event.pastor.state.name }}{% endif %}</div>
+                        {% endif %}
+                        {% if event.description %}
+                            <p>{{ event.description }}</p>
+                        {% endif %}
+                        {% if event.location %}
+                            <div class="event-popup-location">{{ event.location }}</div>
+                        {% endif %}
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            <button type="button" class="btn btn-primary btn-full" id="church-event-popup-ok">Continue</button>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const popup = document.getElementById("church-event-popup");
+        const closeButton = document.getElementById("church-event-popup-close");
+        const continueButton = document.getElementById("church-event-popup-ok");
+
+        function closePopup() {
+            popup.classList.remove("is-visible");
+        }
+
+        popup.classList.add("is-visible");
+        closeButton.addEventListener("click", closePopup);
+        continueButton.addEventListener("click", closePopup);
+        popup.addEventListener("click", function(event) {
+            if (event.target === popup) {
+                closePopup();
+            }
+        });
+        document.addEventListener("keydown", function(event) {
+            if (event.key === "Escape") {
+                closePopup();
+            }
+        });
+    });
+    </script>
+    {% endif %}
+
+    <!-- Header Navigation -->
+    <header class="navbar">
+        <a href="{% url 'home' %}" class="navbar-brand">
+            <img src="{% static 'images/logo.png' %}" alt="The Potter's House Logo" class="navbar-logo">
+        </a>
+        
+        <!-- Mobile Navigation Toggle -->
+        <button type="button" class="navbar-toggle" id="navbar-toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="navbar-menu">
+            <span class="navbar-toggle-bar"></span>
+            <span class="navbar-toggle-bar"></span>
+            <span class="navbar-toggle-bar"></span>
+        </button>
+        
+        <nav class="navbar-menu" id="navbar-menu">
+            <a href="{% url 'home' %}" class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}">Missions Map</a>
+            
+            {% if user.is_authenticated %}
+                <a href="{% url 'videos' %}" class="nav-link {% if request.resolver_match.url_name == 'videos' or request.resolver_match.url_name == 'upload_video' %}active{% endif %}">Sermons & Reports</a>
+                <a href="{% url 'live_stream' %}" class="nav-link {% if request.resolver_match.url_name == 'live_stream' %}active{% endif %}">Live Stream</a>
+                
+                {% if user.is_pastor and user.pastor_profile %}
+                    <a href="{% url 'pastor_dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'pastor_dashboard' %}active{% endif %}">Pastor Dashboard</a>
+                {% endif %}
+                
+                {% if user.is_staff or user.is_superuser %}
+                    <a href="{% url 'admin_dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">Admin Dashboard</a>
+                    <a href="/admin/" class="nav-link" target="_blank">Admin Control</a>
+                {% endif %}
+                
+                <span class="nav-user" style="font-size: 0.9rem; color: var(--blue-primary); font-weight: 600; margin-left: 1rem;">
+                    {% if user.is_pastor and user.pastor_profile %}
+                        Welcome, Pastor {{ user.pastor_profile.name }}
+                    {% elif user.is_staff or user.is_superuser %}
+                        Welcome, Admin {{ user.username }}
+                    {% else %}
+                        Welcome, {{ user.username }}{% if user.referred_by %} (Pastor {{ user.referred_by.name }}'s Referral){% endif %}
+                    {% endif %}
+                </span>
+                <a href="{% url 'logout' %}" class="nav-btn-logout">Logout</a>
+            {% else %}
+                <a href="{% url 'login' %}" class="nav-link {% if request.resolver_match.url_name == 'login' %}active{% endif %}">Login</a>
+                <a href="{% url 'signup' %}" class="nav-link {% if request.resolver_match.url_name == 'signup' %}active{% endif %}" style="border: 1.5px solid var(--blue-primary); font-weight: bold;">Sign Up</a>
+            {% endif %}
+            <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch color theme" aria-pressed="false">
+                <span class="theme-toggle-icon" aria-hidden="true"></span>
+                <span class="theme-toggle-text">Dark</span>
+            </button>
+        </nav>
+    </header>
+
+    <!-- Main Content wrapper -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer style="background: var(--blue-dark); border-top: 1px solid #1e293b; padding: 4rem 2rem 2.5rem 2rem; margin-top: 5rem; color: #94a3b8;">
+        <div class="footer-container" style="max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 3rem; text-align: left; margin-bottom: 3rem;">
+            
+            <!-- Address Column -->
+            <div>
+                <h4 style="color: white; font-size: 1.1rem; font-weight: 800; border-bottom: 2px solid var(--blue-medium); padding-bottom: 0.5rem; margin-bottom: 1.25rem; width: fit-content; text-transform: uppercase; letter-spacing: 0.5px;">
+                    📍 Our Location
+                </h4>
+                <p style="font-weight: 700; color: white; font-size: 1rem; margin-bottom: 0.5rem;">The Potter's House Church</p>
+                <p style="font-size: 0.9rem; line-height: 1.6; margin-bottom: 0.25rem;">Pecon Tower, Floor 2,</p>
+                <p style="font-size: 0.9rem; line-height: 1.6; margin-bottom: 0.25rem;">Street no. 0315,</p>
+                <p style="font-size: 0.9rem; line-height: 1.6; margin-bottom: 0.25rem;">Opposite Candor (Unitech) Gate 2,</p>
+                <p style="font-size: 0.9rem; line-height: 1.6;">Newtown, Kolkata, 700135</p>
+            </div>
+            
+            <!-- Service Times Column -->
+            <div>
+                <h4 style="color: white; font-size: 1.1rem; font-weight: 800; border-bottom: 2px solid var(--red-primary); padding-bottom: 0.5rem; margin-bottom: 1.25rem; width: fit-content; text-transform: uppercase; letter-spacing: 0.5px;">
+                    ⏰ Service Times
+                </h4>
+                
+                <div style="margin-bottom: 1rem;">
+                    <p style="font-weight: 700; color: white; font-size: 1rem; margin-bottom: 0.3rem;">Sunday Worship</p>
+                    <p style="font-size: 0.9rem; margin-bottom: 0.1rem;">Morning: <strong style="color: #60a5fa;">11:00 AM</strong></p>
+                    <p style="font-size: 0.9rem;">Evening: <strong style="color: #60a5fa;">6:00 PM</strong></p>
+                </div>
+                
+                <div>
+                    <p style="font-weight: 700; color: white; font-size: 1rem; margin-bottom: 0.3rem;">Wednesday Bible Study</p>
+                    <p style="font-size: 0.9rem;">Evening: <strong style="color: #f87171;">7:00 PM</strong></p>
+                </div>
+            </div>
+
+            <!-- Google Maps Directions Column -->
+            <div>
+                <h4 style="color: white; font-size: 1.1rem; font-weight: 800; border-bottom: 2px solid #eab308; padding-bottom: 0.5rem; margin-bottom: 1.25rem; width: fit-content; text-transform: uppercase; letter-spacing: 0.5px;">
+                    🗺️ Find Us
+                </h4>
+                <p style="font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.25rem;">
+                    Planning to visit us? Get step-by-step driving or walking directions to our church in Newtown, Kolkata.
+                </p>
+                <a href="https://www.google.com/maps/dir//The+Potter's+House+New+Town,+Pecon+Tower,+Street+No.+0315,+DH+Block(Newtown),+Action+Area+I,+Newtown,+New+Town,+Chakpachuria,+West+Bengal+700160/@22.5778467,88.4793438,17z/data=!4m16!1m7!3m6!1s0x3a020bfbb86c20a9:0x4add5d6beb157db3!2sThe+Potter's+House+New+Town!8m2!3d22.5778467!4d88.4819187!16s%2Fg%2F11k4w9lnbv!4m7!1m0!1m5!1m1!1s0x3a020bfbb86c20a9:0x4add5d6beb157db3!2m2!1d88.4819187!2d22.5778467?entry=ttu&g_ep=EgoyMDI2MDYyMS4wIKXMDSoASAFQAw%3D%3D" target="_blank" class="footer-maps-btn" style="display: inline-flex; align-items: center; gap: 0.5rem; background: var(--blue-medium); color: white; padding: 0.75rem 1.25rem; font-size: 0.85rem; font-weight: bold; border-radius: var(--radius-sm); transition: var(--transition); box-shadow: var(--shadow-sm); text-decoration: none;">
+                    <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    Get Directions
+                </a>
+            </div>
+            
+        </div>
+        
+        <!-- Bottom Bar -->
+        <div style="border-top: 1px solid #1e293b; padding-top: 2rem; text-align: center; font-size: 0.85rem; color: #64748b;">
+            <p>&copy; 2026 The Potter's House Christian Fellowship Church. All Rights Reserved.</p>
+            <p style="margin-top: 0.5rem; font-size: 0.8rem;">Pioneering works and missions across India. Reached states in <span style="color: #60a5fa; font-weight: bold;">Blue</span>. Unreached states in <span style="color: #f87171; font-weight: bold;">Red</span>.</p>
+        </div>
+    </footer>
+
+    <style>
+        .footer-maps-btn:hover {
+            background-color: var(--blue-primary) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+            color: white !important;
+        }
+    </style>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const toggle = document.getElementById("theme-toggle");
+        const toggleText = toggle ? toggle.querySelector(".theme-toggle-text") : null;
+
+        function setTheme(theme) {
+            document.documentElement.setAttribute("data-theme", theme);
+            localStorage.setItem("missionsTheme", theme);
+            if (toggle && toggleText) {
+                const isDark = theme === "dark";
+                toggle.setAttribute("aria-pressed", isDark ? "true" : "false");
+                toggleText.textContent = isDark ? "Light" : "Dark";
+            }
+        }
+
+        if (toggle) {
+            setTheme(document.documentElement.getAttribute("data-theme") || "light");
+            toggle.addEventListener("click", function() {
+                const currentTheme = document.documentElement.getAttribute("data-theme") || "light";
+                setTheme(currentTheme === "dark" ? "light" : "dark");
+            });
+        }
+
+        // Mobile Navigation Menu Toggle
+        const navToggle = document.getElementById("navbar-toggle");
+        const navMenu = document.getElementById("navbar-menu");
+
+        if (navToggle && navMenu) {
+            navToggle.addEventListener("click", function() {
+                const expanded = navToggle.getAttribute("aria-expanded") === "true";
+                navToggle.setAttribute("aria-expanded", !expanded);
+                navToggle.classList.toggle("is-active");
+                navMenu.classList.toggle("is-active");
+            });
+
+            // Close menu if user clicks outside of the navbar area
+            document.addEventListener("click", function(event) {
+                const header = document.querySelector(".navbar");
+                if (header && !header.contains(event.target)) {
+                    navToggle.setAttribute("aria-expanded", "false");
+                    navToggle.classList.remove("is-active");
+                    navMenu.classList.remove("is-active");
+                }
+            });
+
+            // Close menu if window is resized past mobile breakpoint
+            window.addEventListener("resize", function() {
+                if (window.innerWidth > 1024) {
+                    navToggle.setAttribute("aria-expanded", "false");
+                    navToggle.classList.remove("is-active");
+                    navMenu.classList.remove("is-active");
+                }
+            });
+        }
+    });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
